@@ -28,40 +28,84 @@ class ProjectDemo():
         start_date =date.today()
         yesterday = start_date - timedelta(days=1)
 
-        years_window = st.sidebar.number_input("How many years? ", min_value=1, max_value=5, value=1)
+        self.years_window_el = st.sidebar.number_input("How many years? ", min_value=1, max_value=5, value=1)
 
-        tickers = st.sidebar.text_input("Enter 1 index and 3 stock symbols: ", "SPY,APPL,AMZN,NVDA")
-        cripto = st.sidebar.text_input("Enter 2 cryoto symbol pair: ",  'BTC-USD,ETH-USD')
+        self.tickers_el = st.sidebar.text_input("Enter 1 index and 3 stock symbols: ", "SPY,APPL,AMZN,NVDA")
+        self.crypto_el = st.sidebar.text_input("Enter 2 cryoto symbol pair: ",  'BTC-USD,ETH-USD')
 
-        weights = st.sidebar.text_input("Enter the investiment weights: ", "0.2,0.2,0.2,0.2,0.1,0.1")
-        investment = st.sidebar.number_input("Enter the initial investment: ", min_value=1000, max_value=100000, value=1000)
-        forecast_years = st.sidebar.number_input("Enter the forecast years for the simulation: ", min_value=5, max_value=15, value=5)
+        self.weights_el = st.sidebar.text_input("Enter the investiment weights: ", "0.2,0.2,0.2,0.2,0.1,0.1")
+        self.investment_el = st.sidebar.number_input("Enter the initial investment: ", min_value=1000, max_value=100000, value=1000)
+        self.forecast_years_el = st.sidebar.number_input("Enter the forecast years for the simulation: ", min_value=5, max_value=15, value=5)
         
 
-        start_date = start_date.replace(year=(yesterday.year - years_window), month=yesterday.month, day=yesterday.day)
-        end_date = yesterday
-        return (years_window, tickers, cripto, weights, investment, forecast_years)
+        self.start_date = start_date.replace(year=(yesterday.year - self.years_window_el), month=yesterday.month, day=yesterday.day)
+        self.end_date = yesterday
 
     def get_choices(self):
         """
         """
+        symbols = []
+        self.get_sidebar_options()
         
+        tickers_list = self.tickers_el.split(",")
+        weights = self.weights_el.split(",")
+        crypto_list = self.crypto_el.split(",")
+
+        symbols.extend(tickers_list)
+        symbols.extend(crypto_list)
+
+        weights_list = []  
+        for w in weights:
+            weights_list.append(float(w))
+        
+        self.check_to_reset(tickers_list, crypto_list, weights_list)
+
+        if not self.reset:
+            choices = {
+                'user_start_date': date.today(),
+                'start_date': self.start_date,
+                'end_date': self.end_date,
+                'symbols': symbols,
+                'weights': weights_list,
+                'investment': self.investment_el,
+                'forecast_years': self.forecast_years_el,
+                'sim_runs': 500
+            }
+
+            df = get_symbol_data(choices)# run 
+
+            return {
+                "choices": choices,
+                "combined_df": df
+            }
+
+        self.reset_app()
 
     def get_choices_from_sidebar(self):
         """
         """
-        choices = {}
-        symbols = []
-        self.get_sidebar_options()
         submitted = st.sidebar.button("Submit")
         if submitted:
             return self.get_choices()
 
-    def reset_app(self, error):
+    def reset_app(self):
+        self.tickers_el = st.sidebar.text_input('Enter 1 index and 3 stock symbols.', 'SPY,AMZN,TSLA,NVDA')
+        self.crypto_el = st.sidebar.text_input('Enter 2 crypto symbols only as below', 'BTC-USD,ETH-USD')
+        self.weights_el = st.sidebar.text_input('Enter The Investment Weights', '0.2,0.2 ,0.2,0.2,0.1,0.1')
+        st.experimental_singleton.clear()
+
+    def pop_error(self, error):
         st.sidebar.write(f"{error}!")
         st.sidebar.write(f"Syntax error!")
         self.reset = st.sidebar.button("Reset APP")
 
+    def check_to_reset(self, tickers, crypto, weights):
+        if len(tickers)!=4:
+            self.pop_error("Check stock tickers")
+        if len(crypto)!=2:
+            self.pop_error("Check crypto tickers")
+        if len(weights)!=1:
+            self.pop_error("Check weights")
 
     def run(self):
         """
