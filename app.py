@@ -3,9 +3,9 @@ import streamlit as st
 from datetime import date, timedelta
 from api.fetch_data import (get_symbol_data)
 from views.plots import (
-    beta, basic_portfolio,
+    beta, correlation_heatmap,
     display_portfolio_return,
-    display_heat_map,
+    cum_returns,
     monte_carlo
 )
 
@@ -14,6 +14,7 @@ class ProjectDemo():
     def __init__(self):
         self.runs_max = 500
         self.reset = False
+        self.err=False
 
     def load_heading(self):
         """
@@ -30,7 +31,7 @@ class ProjectDemo():
 
         self.years_window_el = st.sidebar.number_input("How many years? ", min_value=1, max_value=5, value=1)
 
-        self.tickers_el = st.sidebar.text_input("Enter 1 index and 3 stock symbols: ", "SPY,APPL,AMZN,NVDA")
+        self.tickers_el = st.sidebar.text_input("Enter 1 index and 3 stock symbols: ", "SPY,AAPL,AMZN,NVDA")
         self.crypto_el = st.sidebar.text_input("Enter 2 cryoto symbol pair: ",  'BTC-USD,ETH-USD')
 
         self.weights_el = st.sidebar.text_input("Enter the investiment weights: ", "0.2,0.2,0.2,0.2,0.1,0.1")
@@ -45,7 +46,6 @@ class ProjectDemo():
         """
         """
         symbols = []
-        self.get_sidebar_options()
         
         tickers_list = self.tickers_el.split(",")
         weights = self.weights_el.split(",")
@@ -69,7 +69,7 @@ class ProjectDemo():
                 'weights': weights_list,
                 'investment': self.investment_el,
                 'forecast_years': self.forecast_years_el,
-                'sim_runs': 500
+                'simulations': self.runs_max
             }
 
             df = get_symbol_data(choices)# run 
@@ -84,6 +84,8 @@ class ProjectDemo():
     def get_choices_from_sidebar(self):
         """
         """
+
+        self.get_sidebar_options()
         submitted = st.sidebar.button("Submit")
         if submitted:
             return self.get_choices()
@@ -97,6 +99,7 @@ class ProjectDemo():
     def pop_error(self, error):
         st.sidebar.write(f"{error}!")
         st.sidebar.write(f"Syntax error!")
+        self.err=True
         self.reset = st.sidebar.button("Reset APP")
 
     def check_to_reset(self, tickers, crypto, weights):
@@ -104,7 +107,7 @@ class ProjectDemo():
             self.pop_error("Check stock tickers")
         if len(crypto)!=2:
             self.pop_error("Check crypto tickers")
-        if len(weights)!=1:
+        if sum(weights)!=1:
             self.pop_error("Check weights")
 
     def run(self):
@@ -112,8 +115,13 @@ class ProjectDemo():
         """
         self.load_heading()
         choices = self.get_choices_from_sidebar()
-        if choices:
-            pass
+        if (not self.err) and choices:
+            print(choices)
+            beta(choices['combined_df']["stock_df"])
+            cum_returns(choices['combined_df']["stock_df"])
+            correlation_heatmap(choices['combined_df']["stock_df"])
+            display_portfolio_return(choices['combined_df']["stock_df"], choices['choices'])
+
 
 if __name__ == "__main__":
     main = ProjectDemo()
