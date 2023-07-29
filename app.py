@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 from datetime import date, timedelta
-from api.fetch_data import (get_symbol_data)
+from api.fetch_data import InvestPyHandler
 from views.plots import (
     beta, correlation_heatmap,
     display_portfolio_return,
@@ -12,7 +12,10 @@ from views.plots import (
 class ProjectDemo():
 
     def __init__(self):
-        self.runs_max = 500
+        self.countries = ['brazil', 'united states']
+        self.interval = "Daily"
+        self.ip = InvestPyHandler()
+        self.runs_max = 50
         self.reset = False
         self.err=False
 
@@ -31,10 +34,9 @@ class ProjectDemo():
 
         self.years_window_el = st.sidebar.number_input("How many years? ", min_value=1, max_value=5, value=1)
 
-        self.tickers_el = st.sidebar.text_input("Enter 1 index and 3 stock symbols: ", "SPY,AAPL,AMZN,NVDA")
-        self.crypto_el = st.sidebar.text_input("Enter 2 cryoto symbol pair: ",  'BTC-USD,ETH-USD')
+        self.ip.load_st_accessors(self.countries)
 
-        self.weights_el = st.sidebar.text_input("Enter the investiment weights: ", "0.2,0.2,0.2,0.2,0.1,0.1")
+        self.weights_el = st.sidebar.text_input("Enter the investiment weights: ", "20,20,20,20,20")
         self.investment_el = st.sidebar.number_input("Enter the initial investment: ", min_value=1000, max_value=100000, value=1000)
         self.forecast_years_el = st.sidebar.number_input("Enter the forecast years for the simulation: ", min_value=5, max_value=15, value=5)
         
@@ -45,70 +47,58 @@ class ProjectDemo():
     def get_choices(self):
         """
         """
-        symbols = []
-        
-        tickers_list = self.tickers_el.split(",")
-        weights = self.weights_el.split(",")
-        crypto_list = self.crypto_el.split(",")
-
-        symbols.extend(tickers_list)
-        symbols.extend(crypto_list)
-
-        weights_list = []  
-        for w in weights:
-            weights_list.append(float(w))
-        
-        self.check_to_reset(tickers_list, crypto_list, weights_list)
-
-        if not self.reset:
+        if (not self.err):
             choices = {
                 'user_start_date': date.today(),
                 'start_date': self.start_date,
                 'end_date': self.end_date,
-                'symbols': symbols,
-                'weights': weights_list,
+                'symbols': self.ip.symbols,
+                'weights': self.weights_el,
                 'investment': self.investment_el,
                 'forecast_years': self.forecast_years_el,
                 'simulations': self.runs_max
             }
 
-            df = get_symbol_data(choices)# run 
+            df = self.ip.get_data(choices)# run 
 
             return {
                 "choices": choices,
                 "combined_df": df
             }
 
-        self.reset_app()
+        # self.reset_app()
 
     def get_choices_from_sidebar(self):
         """
         """
-
         self.get_sidebar_options()
         submitted = st.sidebar.button("Submit")
         if submitted:
+            self.check_to_reset()
             return self.get_choices()
 
     def reset_app(self):
-        self.tickers_el = st.sidebar.text_input('Enter 1 index and 3 stock symbols.', 'SPY,AMZN,TSLA,NVDA')
-        self.crypto_el = st.sidebar.text_input('Enter 2 crypto symbols only as below', 'BTC-USD,ETH-USD')
-        self.weights_el = st.sidebar.text_input('Enter The Investment Weights', '0.2,0.2 ,0.2,0.2,0.1,0.1')
-        st.experimental_singleton.clear()
+        if self.reset:
+            st.cache_resource.clear()
+            st.session_state.clear()
 
     def pop_error(self, error):
         st.sidebar.write(f"{error}!")
         st.sidebar.write(f"Syntax error!")
         self.err=True
-        self.reset = st.sidebar.button("Reset APP")
+        # self.reset = st.sidebar.button("Reset APP")
 
-    def check_to_reset(self, tickers, crypto, weights):
-        if len(tickers)!=4:
-            self.pop_error("Check stock tickers")
-        if len(crypto)!=2:
-            self.pop_error("Check crypto tickers")
-        if sum(weights)!=1:
-            self.pop_error("Check weights")
+    def check_to_reset(self):
+        try:
+            self.weights_el = [ float(w)/100 for w in self.weights_el.split(",")]
+            print(self.ip.symbols)
+            if len(self.ip.symbols)==0:
+                self.pop_error("Check stocks list!")
+            if sum(self.weights_el)!=1:
+                self.pop_error("Check weights sum!")
+        except ValueError as err:
+            self.pop_error("Check weights format!")
+            # st.error(e)
 
     def run(self):
         """
@@ -117,11 +107,12 @@ class ProjectDemo():
         choices = self.get_choices_from_sidebar()
         if (not self.err) and choices:
             print(choices)
-            beta(choices['combined_df']["stock_df"])
-            cum_returns(choices['combined_df']["stock_df"])
-            correlation_heatmap(choices['combined_df']["stock_df"])
-            display_portfolio_return(choices['combined_df']["stock_df"], choices['choices'])
-
+            # beta(choices['combined_df']["stock_df"])
+            # cum_returns(choices['combined_df']["stock_df"])
+            # correlation_heatmap(choices['combined_df']["stock_df"])
+            # display_portfolio_return(choices['combined_df']["stock_df"], choices['choices'])
+            # with st.spinner("Running Monte Carlo Simulation... "):
+            #     monte_carlo(choices['combined_df']["monte_carlo_df"], choices['choices'])
 
 if __name__ == "__main__":
     main = ProjectDemo()

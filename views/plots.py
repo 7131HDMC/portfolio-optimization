@@ -69,10 +69,10 @@ def display_portfolio_return(stock_df, choices):
     
     daily_return = stock_df.dropna().pct_change()
     portfolio_returns = daily_return.dot(weights)
-    cumulative_return = (1+daily_return).cumprod()
+    cumulative_return = (1+portfolio_returns).cumprod()
     cumulative_profit = investment * cumulative_return
 
-    st.subheader("HIstorical Cumulative Returns Based on Inputs")
+    st.subheader("Historical Cumulative Returns Based on Inputs")
     st.line_chart(cumulative_profit)
 
 
@@ -85,15 +85,15 @@ def monte_carlo(monte_carlo_df, choices):
     simulation = MonteCarlo(
         data=monte_carlo_df,
         weights=weights,
-        num_simulation=simulations,
-        num_trading_days=252*forecast_years
+        n_simulation=simulations,
+        n_trading_days=252*forecast_years
     )
 
-    summary_results = simulation.cumulative_return()
+    summary_results = simulation.simulated_return
+    simulation_summary = simulation.summarize_cum_return()
+
     st.subheader(f"Simulation Summary Cumulative Returns {forecast_years} Yr(s) Outlook")
     st.line_chart(summary_results)
-
-    simulation_summary = simulation.summarize_cumulative_return()
     lower_cum_return = round(simulation_summary[8] * investment, 2)
     upper_cum_return = round(simulation_summary[9] * investment, 2)
     st.write(f"There is a 95% chance that an initial investment of ${investment} over the next {forecast_years} years might result within the range of {lower_cum_return} and {upper_cum_return} USD!")
