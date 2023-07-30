@@ -3,13 +3,15 @@ import pytz
 import numpy as np
 import pandas as pd
 import datetime as dt
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class MonteCarlo:
     """
 
     """
 
-    def __init__(self, data, weights="", n_simulation=500, n_trading_days=252):
+    def __init__(self, data, initial_investment, weights="", n_simulation=500, n_trading_days=252):
         """
             Initiate class attributes, check for errors and update attributes if applicable
 
@@ -28,7 +30,8 @@ class MonteCarlo:
         self.weights = weights
         self.n_sim = n_simulation
         self.n_trading = n_trading_days
-        self.simulated_return = ""
+        self.initial_investment = initial_investment
+        self.final_returns = ""
 
         self.check_errors()
         self.update_weights()
@@ -45,9 +48,9 @@ class MonteCarlo:
             self.data = self.data.merge(close, left_index=True, right_index=True).reindex(columns=tickers, level=0)
 
     def update_cum_return(self):
-        """  Calculate cumulative return if simulated_return isn't a Pandas DataFrame """
-        if not isinstance(self.simulated_return, pd.DataFrame):
-            self.cum_return()
+        """  Calculate cumulative return if final_returns isn't a Pandas DataFrame """
+        if not isinstance(self.final_returns, pd.DataFrame):
+            self.monte_carlo_simulation()
 
     def update_weights(self):
         """ Update portfolio weights if its empty! """
@@ -63,48 +66,40 @@ class MonteCarlo:
         if round(sum(self.weights),2) < .99:
             raise AttributeError("Sum of weights must be equal one!")
 
-    def plot_simulation(self):
-        """  """
-
-        title = f"{self.n_sim} Simulations of Cumulative Return Trajectories Over the Next {self.n_trading} Trading Days."
-        return self.simulated_return.plot(legend=None, title=title)
-    
-    def plot_distribution(self):
-        """  """
-        title = f"Distribution of Final Cumulative Returns Across {self.n_sims} Simulations!"
-        plt = self.simulated_return.iloc[-1, :].plot(kind="hist", bins=10, density=True, title=title)
-        plt.axvline(self.confidence_interval.iloc[0], color='r')
-        plt.axvline(self.confidence_interval.iloc[1], color='r')
-        return plt
-    
     def summarize_cum_return(self):
         """  """
-        metrics = self.simulated_return.iloc[-1].describe()
+        metrics = self.final_returns.iloc[-1].describe()
         ci_series = self.confidence_interval
         ci_series.index = ["95% CI Lower", "95% CI Upper"]
         return metrics.append(ci_series)
 
-    def cum_return(self):
-        """  """
-        last_prices = self.data.xs('close', level=1, axis=1)[-1:].values.tolist()[0]
+    def dist(self):
+        # last = self.final_returns.columns[-1:].values[0]
+        # print(last)
+        last = self.final_returns.iloc[-1,:]
+        print(last)
+        fig, ax = plt.subplots()
+        sns.histplot(data=last, ax=ax)
+        return fig
+
+    def monte_carlo_simulation(self):
+        """ 
+        
+        """
         daily_returns = self.data.xs('daily_return', level=1, axis=1)
-        mean_returns = daily_returns.mean().tolist()        
-        std_returns = daily_returns.std().tolist()
-        cum_returns = pd.DataFrame()
+        cov = daily_returns.cov()
+        mean_returns = daily_returns.mean().tolist() 
+        returns = np.full(shape=(self.n_trading, len(self.weights)), fill_value=mean_returns)
+        returns = returns.T 
+        portfolio_sims = np.full(shape=(self.n_trading, self.n_sim), fill_value=.0)
+        
+        for sim in range(0, self.n_sim):
+            Z =  np.random.normal(size=(self.n_trading, len(self.weights)))
+            L = np.linalg.cholesky(cov)
+            daily_returns = returns + np.inner(L, Z)
+            portfolio_sims[:,sim] = np.cumprod(np.inner(self.weights, daily_returns.T)+1)* self.initial_investment
 
-        for sim_it in range(self.n_sim):
-            sim_vals = [[price] for price in last_prices]
-            for price_it in range(len(last_prices)):
-                for trading_it in range(self.n_trading):
-                    simulated_price = sim_vals[price_it][-1] * ( 1 + np.random.normal(mean_returns[price_it], std_returns[price_it]))
-                    sim_vals[price_it].append(simulated_price)
-            sim_df = pd.DataFrame(sim_vals).T.pct_change()
-            sim_df = (sim_df.dot(self.weights)).fillna(0)
-            cum_returns[sim_it] = (1 + sim_df).cumprod()
-
-        self.simulated_return = cum_returns
-        self.confidence_interval =  cum_returns.iloc[-1, :].quantile(q=[.025, .975])
-        return cum_returns
+        self.final_returns = pd.DataFrame(portfolio_sims)
 
 
     

@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from api.fetch_data import InvestPyHandler
 from views.plots import (
     beta, correlation_heatmap,
@@ -12,10 +12,10 @@ from views.plots import (
 class ProjectDemo():
 
     def __init__(self):
-        self.countries = ['brazil', 'united states']
+        self.countries = ['United States', 'Brazil']
         self.interval = "Daily"
         self.ip = InvestPyHandler()
-        self.runs_max = 50
+        self.runs_max = 100
         self.reset = False
         self.err=False
 
@@ -24,7 +24,7 @@ class ProjectDemo():
         """
         with st.container():
             st.title("Portfolio Analysis")
-            h = st.subheader("This app performs portfolio analysis with monte carllo simulation.")
+            h = st.subheader("This app performs portfolio analysis and use monte carlo simulation.")
 
     def get_sidebar_options(self):
         """
@@ -38,11 +38,18 @@ class ProjectDemo():
 
         self.weights_el = st.sidebar.text_input("Enter the investiment weights: ", "20,20,20,20,20")
         self.investment_el = st.sidebar.number_input("Enter the initial investment: ", min_value=1000, max_value=100000, value=1000)
-        self.forecast_years_el = st.sidebar.number_input("Enter the forecast years for the simulation: ", min_value=5, max_value=15, value=5)
+        self.forecast_years_el = st.sidebar.number_input("Enter the forecast years for the simulation: ", min_value=2, max_value=5, value=2)
         
 
-        self.start_date = start_date.replace(year=(yesterday.year - self.years_window_el), month=yesterday.month, day=yesterday.day)
+        self.start_date = start_date.replace(year=(yesterday.year - self.years_window_el), month=yesterday.month, day=yesterday.day)#.strftime('%d/%m/%Y')
         self.end_date = yesterday
+
+        self.show_dataframe = st.sidebar.checkbox("Show dataframes?")
+
+        self.run_simulations = st.sidebar.checkbox("Run Monte Carlo Simulation with default runs")
+
+        self.submitted = st.sidebar.button("Submit")
+
 
     def get_choices(self):
         """
@@ -72,8 +79,7 @@ class ProjectDemo():
         """
         """
         self.get_sidebar_options()
-        submitted = st.sidebar.button("Submit")
-        if submitted:
+        if self.submitted:
             self.check_to_reset()
             return self.get_choices()
 
@@ -96,6 +102,9 @@ class ProjectDemo():
                 self.pop_error("Check stocks list!")
             if sum(self.weights_el)!=1:
                 self.pop_error("Check weights sum!")
+            if len(self.weights_el) != len(self.ip.symbols):
+                self.pop_error("Check weights amount!")
+
         except ValueError as err:
             self.pop_error("Check weights format!")
             # st.error(e)
@@ -106,13 +115,14 @@ class ProjectDemo():
         self.load_heading()
         choices = self.get_choices_from_sidebar()
         if (not self.err) and choices:
-            print(choices)
             # beta(choices['combined_df']["stock_df"])
             # cum_returns(choices['combined_df']["stock_df"])
-            # correlation_heatmap(choices['combined_df']["stock_df"])
+            # correlation_heatmap(choices['combined_df']["stock_df"], self.show_dataframe)
             # display_portfolio_return(choices['combined_df']["stock_df"], choices['choices'])
-            # with st.spinner("Running Monte Carlo Simulation... "):
-            #     monte_carlo(choices['combined_df']["monte_carlo_df"], choices['choices'])
+
+            if self.run_simulations:
+                with st.spinner("Running Monte Carlo Simulation... "):
+                    monte_carlo(choices['combined_df']["monte_carlo_df"], choices['choices'], self.show_dataframe)
 
 if __name__ == "__main__":
     main = ProjectDemo()
