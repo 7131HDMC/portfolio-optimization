@@ -12,7 +12,6 @@ class InvestPyHandler:
         """  """
         self.symbols = ""
         
-    # @st.cache
     def get_historical_data(self, symbol, country, from_date, to_date, type, interval="Daily"):
         """  """
         print(from_date)
@@ -51,7 +50,8 @@ class InvestPyHandler:
         if "Brazil" in self.country:
             self.symbols = [ s+".SA" for s in self.symbols]
 
-    def get_data(self, choices):
+    @st.cache_data
+    def get_data(_self, choices):
         """
         """
         start_date, end_date, symbols = choices["start_date"], choices["end_date"], choices["symbols"]

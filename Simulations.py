@@ -5,6 +5,7 @@ import pandas as pd
 import datetime as dt
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as ex
 
 class MonteCarlo:
     """
@@ -31,7 +32,7 @@ class MonteCarlo:
         self.n_sim = n_simulation
         self.n_trading = n_trading_days
         self.initial_investment = initial_investment
-        self.final_returns = ""
+        self.simulated_returns = ""
 
         self.check_errors()
         self.update_weights()
@@ -48,8 +49,8 @@ class MonteCarlo:
             self.data = self.data.merge(close, left_index=True, right_index=True).reindex(columns=tickers, level=0)
 
     def update_cum_return(self):
-        """  Calculate cumulative return if final_returns isn't a Pandas DataFrame """
-        if not isinstance(self.final_returns, pd.DataFrame):
+        """  Calculate cumulative return if simulated_returns isn't a Pandas DataFrame """
+        if not isinstance(self.simulated_returns, pd.DataFrame):
             self.monte_carlo_simulation()
 
     def update_weights(self):
@@ -66,25 +67,38 @@ class MonteCarlo:
         if round(sum(self.weights),2) < .99:
             raise AttributeError("Sum of weights must be equal one!")
 
-    def summarize_cum_return(self):
-        """  """
-        metrics = self.final_returns.iloc[-1].describe()
-        ci_series = self.confidence_interval
-        ci_series.index = ["95% CI Lower", "95% CI Upper"]
-        return metrics.append(ci_series)
+    def quantile(self):
+        """  """ 
+        range = self.last_returns.quantile(q=[.025, .25, .5, .75, .975]).T
+        range.index = ["Lower", "Q1", "Q2", "Q3", "Upper"]
+        return range
 
-    def dist(self):
-        # last = self.final_returns.columns[-1:].values[0]
-        # print(last)
-        last = self.final_returns.iloc[-1,:]
-        print(last)
-        fig, ax = plt.subplots()
-        sns.histplot(data=last, ax=ax)
+    def metrics(self):
+        """ Add other metrics later """
+        above_initial, below_initial = [], []
+        for r in self.last_returns:
+            if r >= self.initial_investment:
+                above_initial.append(r) 
+            else:
+                below_initial.append(r)
+        percent = lambda data: (len(data)*100)/len(self.last_returns)
+
+        return {
+            "above_initial": above_initial, 
+            "below_initial": below_initial,
+            "below_pct": percent(below_initial),
+            "above_pct": percent(above_initial)
+        }
+
+    def distribution(self):
+        range = self.quantile()
+        title = f"Range of simulated returns in next {self.n_trading//252} years, 95% of returns are between {int(range[0])} to {int(range[4])}"
+        fig = ex.histogram(data_frame=self.last_returns, marginal="violin",title=title, nbins=30)
         return fig
 
     def monte_carlo_simulation(self):
         """ 
-        
+            Monte carlo simulation from daily returns with Cholesky Decomposition to determine Lower Triangular Matrix
         """
         daily_returns = self.data.xs('daily_return', level=1, axis=1)
         cov = daily_returns.cov()
@@ -99,7 +113,9 @@ class MonteCarlo:
             daily_returns = returns + np.inner(L, Z)
             portfolio_sims[:,sim] = np.cumprod(np.inner(self.weights, daily_returns.T)+1)* self.initial_investment
 
-        self.final_returns = pd.DataFrame(portfolio_sims)
+        self.simulated_returns = pd.DataFrame(portfolio_sims)
+        self.last_returns = self.simulated_returns.iloc[-1,:]
+        self.last_returns.name = "Value"     
 
 
     

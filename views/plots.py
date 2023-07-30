@@ -5,33 +5,50 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from Simulations import MonteCarlo
 
-def beta(stock_df):
+def beta(stock_df, weights):
     """
     """
-    beta_list = []
+    beta_stocks = []
+    beta_weight = []
     covariance = .0
     covariance_list = []
 
     daily_returns = stock_df.dropna().pct_change()
     columns = daily_returns.columns.tolist()
-
+    i=0
     for column in columns:
+
         if column == columns[0]:
-            beta_list.append(1)
+            beta_stocks.append(1)
+            beta_weight.append(1*weights[i])
             covariance_list.append(1)
             continue
 
         covariance = daily_returns[column].cov(daily_returns[columns[0]])
-        variance = daily_returns[columns[0]].var()        
-        
-        beta_list.append(covariance / variance)
+        variance = daily_returns[columns[0]].var() 
+        print(variance)       
+        beta = covariance / variance
+        beta_stocks.append(beta)
+        beta_weight.append(beta*weights[i])
         covariance_list.append(covariance)
+        i+=1
+    
 
-    beta = {"Assets": columns, "Beta": beta_list}
+    beta = {"Assets": columns, "Beta": beta_stocks, "Beta Weight": beta_weight}
 
-    st.header("")
-    st.subheader("Beta of Assets Compared to Index")
-    st.dataframe(beta)
+    beta_weight = np.array(beta_weight)
+
+    container = st.container()
+
+    container.header("")
+    container.subheader("Beta of Assets Compared to Index")
+
+    col1, col2, col3 = container.columns([3,3,3])
+
+    col1.subheader("")
+    col1.dataframe(beta)
+    portfolio_beta = {"Portfolio Beta": beta_weight.sum()}
+    col1.dataframe(portfolio_beta)
 
 
 
@@ -76,7 +93,7 @@ def display_portfolio_return(stock_df, choices):
     cumulative_profit = investment * cumulative_return
     cumulative_profit= pd.DataFrame(cumulative_profit, columns=["Investiment"])
     st.header("")
-    st.subheader("Historical Cumulative Returns Based on Inputs")
+    st.subheader("Historical Cumulative Returns!")
     st.subheader("")
     st.line_chart(cumulative_profit)
 
@@ -95,22 +112,11 @@ def monte_carlo(monte_carlo_df, choices, show_dataframe):
         n_trading_days=252*forecast_years
     )
 
-    # summary_results = simulation.simulated_return
-    # simulation.simulated_return *= investment
-    
-    st.line_chart(simulation.final_returns)
-    st.write(simulation.dist())
-    # st.plotly_chart(simulation.final_returns.hist())
-    # simulation_summary = simulation.summarize_cum_return()
-
-    # st.header("")
-    # st.header("")
-    # st.subheader(f"Simulation Summary Cumulative Returns {forecast_years} Yr(s) Outlook")
-    # st.line_chart(summary_results)
-    # lower_cum_return = round(simulation_summary[8] * investment, 2)
-    # upper_cum_return = round(simulation_summary[9] * investment, 2)
-    # st.write(f"95% of simulations that an initial investment of ${investment} over the next {forecast_years} years might result within the range of {lower_cum_return} and {upper_cum_return} USD!")
-    
-    # # show_dataframe = st.checkbox("Monte carlo dataframe")
-    # if show_dataframe:
-    #     st.dataframe(simulation_summary)
+    st.header("")
+    st.header("")
+    st.subheader(f"Simulation Cumulative Returns {forecast_years} Yr(s) Outlook")
+    st.subheader("")
+    st.line_chart(simulation.simulated_returns)
+    st.plotly_chart(simulation.distribution())
+    metrics = simulation.metrics()
+    st.write(f"%.0f percent of the simulations have an estimated return above the initial investment! "%metrics["above_pct"])

@@ -15,7 +15,7 @@ class ProjectDemo():
         self.countries = ['United States', 'Brazil']
         self.interval = "Daily"
         self.ip = InvestPyHandler()
-        self.runs_max = 100
+        self.runs_max = 500
         self.reset = False
         self.err=False
 
@@ -115,10 +115,10 @@ class ProjectDemo():
         self.load_heading()
         choices = self.get_choices_from_sidebar()
         if (not self.err) and choices:
-            # beta(choices['combined_df']["stock_df"])
-            # cum_returns(choices['combined_df']["stock_df"])
-            # correlation_heatmap(choices['combined_df']["stock_df"], self.show_dataframe)
-            # display_portfolio_return(choices['combined_df']["stock_df"], choices['choices'])
+            beta(choices['combined_df']["stock_df"], self.weights_el)
+            cum_returns(choices['combined_df']["stock_df"])
+            correlation_heatmap(choices['combined_df']["stock_df"], self.show_dataframe)
+            display_portfolio_return(choices['combined_df']["stock_df"], choices['choices'])
 
             if self.run_simulations:
                 with st.spinner("Running Monte Carlo Simulation... "):
