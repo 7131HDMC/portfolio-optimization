@@ -15,7 +15,7 @@ class ProjectDemo():
         self.countries = ['United States', 'Brazil']
         self.interval = "Daily"
         self.ip = InvestPyHandler()
-        self.runs_max = 500
+        self.runs_max = 100
         self.reset = False
         self.err=False
 
@@ -24,7 +24,7 @@ class ProjectDemo():
         """
         with st.container():
             st.title("Portfolio Analysis")
-            h = st.subheader("This app performs portfolio analysis and use monte carlo simulation.")
+            st.subheader("Portfolio analysis with monte carlo simulation.")
 
     def get_sidebar_options(self):
         """
